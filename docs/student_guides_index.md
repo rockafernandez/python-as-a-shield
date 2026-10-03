@@ -18,7 +18,7 @@ Los ejemplos usan user01 / participante 01. Sustitúyelos de forma consistente p
 2. Proporciona el ID real de la cuenta y confirma us-east-1. Para Network, proporciona la VPC y el CIDR configurado de cada estudiante.
 3. Confirma que ambas SCP, los roles, los límites de permisos y el registro de eventos de administración de CloudTrail están configurados.
 4. Haz una prueba piloto con user01 en cada cuenta. Verifica que la consola permita enviar etiquetas y el límite al crear recursos, y seleccionar el rol existente en EventBridge con los permisos actuales.
-5. Para Storage, proporciona el eventName exacto de CloudTrail para Block Public Access del bucket y eventos de ejemplo sin datos sensibles para todos los casos. Confirma que los campos de solicitud coincidan con los usados por los controladores.
+5. Para Storage, usa el eventName `PutBucketPublicAccessBlock` para Block Public Access del bucket y proporciona eventos de ejemplo sin datos sensibles para todos los casos. Confirma que los campos de solicitud coincidan con los usados por los controladores.
 6. Network y Storage tienen actualmente una cuota total de concurrencia de 10; los aumentos están pendientes. No ejecutes el límite de concurrencia para todas las cuentas hasta disponer de capacidad suficiente. Usa funciones cortas y un cambio a la vez por estudiante. El instructor supervisa errores, limitaciones y duración.
 7. Estos controladores educativos no se han probado mediante integración en AWS. Verifica el estado final y que repetir un evento no produzca nuevas modificaciones antes de entregar las guías. No incluyen aprobación de producción, deduplicación persistente, manejo de eventos fallidos ni protección atómica ante cambios externos concurrentes.
 

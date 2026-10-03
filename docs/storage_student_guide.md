@@ -33,7 +33,7 @@ El código es un ejemplo educativo alineado con los permisos del taller. No se h
 
 ## 3. Crea tu bucket y tu cola vacíos
 
-Pide al instructor el ID de la cuenta Storage y el **eventName exacto de CloudTrail para actualizar Block Public Access del bucket**, verificado en la prueba piloto. El nombre de un permiso de API no siempre coincide con el nombre del evento de CloudTrail.
+Pide al instructor el ID de la cuenta Storage. El evento de CloudTrail para actualizar Block Public Access del bucket es **`PutBucketPublicAccessBlock`** y ya está configurado en el código y la regla. El nombre del evento de CloudTrail difiere del nombre de la operación de Boto3 (`put_public_access_block`).
 
 1. Abre **S3 → Create bucket**. Selecciona un bucket de uso general en us-east-1.
 2. Usa exactamente `workshop-ACCOUNT_ID-student-01-pythonshield`; sustituye el ID de la cuenta Storage y tu número de dos dígitos.
@@ -47,7 +47,7 @@ Block Public Access de S3 a nivel de cuenta permanece habilitado. Cambiar solo l
 
 ## 4. Implementa el código de corrección de tu grupo
 
-Configura `OWNER`, `NUMBER`, `ACCOUNT_ID` y `S3_BPA_EVENT`. Usa el eventName observado por el instructor tanto en el código como en la regla. La rama de SQS comprueba la política y el cifrado en cada evento SetQueueAttributes. Elimina únicamente la instrucción pública con el nombre del ejercicio y conserva las demás. El límite del rol de ejecución exige las etiquetas de propietario; el código no tiene permiso para listar las etiquetas de la cola.
+Configura `OWNER`, `NUMBER` y `ACCOUNT_ID`. Mantén `S3_BPA_EVENT = "PutBucketPublicAccessBlock"`, que coincide con el evento configurado en la regla. La rama de SQS comprueba la política y el cifrado en cada evento SetQueueAttributes. Elimina únicamente la instrucción pública con el nombre del ejercicio y conserva las demás. El límite del rol de ejecución exige las etiquetas de propietario; el código no tiene permiso para listar las etiquetas de la cola.
 
 Si la prueba piloto muestra nombres distintos en los campos de la solicitud o falta queueUrl/bucketName, pide al instructor que adapte la extracción antes de la clase. No retires las comprobaciones de alcance. El código conserva el cifrado KMS existente; este laboratorio comienza con SSE-SQS y no incluye cambios de KMS.
 
@@ -58,8 +58,8 @@ import boto3
 OWNER = "user01"
 NUMBER = "01"
 ACCOUNT_ID = "REPLACE_STORAGE_ACCOUNT_ID"
-# Instructor supplies the exact eventName from a pilot CloudTrail event.
-S3_BPA_EVENT = "REPLACE_WITH_OBSERVED_S3_EVENT_NAME"
+# Bucket-level CloudTrail event for updating S3 Block Public Access.
+S3_BPA_EVENT = "PutBucketPublicAccessBlock"
 BUCKET = f"workshop-{ACCOUNT_ID}-student-{NUMBER}-pythonshield"
 QUEUE = f"{OWNER}-Queue"
 QUEUE_ARN = f"arn:aws:sqs:us-east-1:{ACCOUNT_ID}:{QUEUE}"
@@ -129,7 +129,7 @@ def lambda_handler(event, context):
 
 1. Abre **Amazon EventBridge → Rules → Create rule**. Usa el bus **default** y una regla basada en un patrón de eventos, no una programación.
 2. Usa el prefijo de tu usuario en el nombre indicado abajo. Si es necesario, utiliza Advanced Builder o el editor de patrones JSON personalizados.
-3. Pega el patrón y sustituye `ACCOUNT_ID` y `user01`. En Storage, sustituye también `S3_BPA_EVENT` por el nombre del evento observado por el instructor.
+3. Pega el patrón y sustituye `ACCOUNT_ID` y `user01`. El patrón de Storage ya incluye `PutBucketPublicAccessBlock`; conserva ese nombre.
 4. Selecciona el destino **AWS service → Lambda function → user01-Remediator**.
 5. En los permisos del destino, selecciona **Use existing role → user01-EventRole**. Envía el **evento completo**, sin transformar la entrada.
 6. Si el asistente propone crear un rol o agregar una política de recursos a Lambda, selecciona el rol existente. Si esa opción no aparece, consulta al instructor; no solicites permisos más amplios.
@@ -171,7 +171,7 @@ Crea la regla **`user01-Storage`**. Envía los eventos de API de S3 y SQS a una 
           "s3.amazonaws.com"
         ],
         "eventName": [
-          "S3_BPA_EVENT"
+          "PutBucketPublicAccessBlock"
         ]
       }
     },

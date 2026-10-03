@@ -27,7 +27,7 @@ Los nombres de recursos, comandos y código se conservan para mantener compatibi
 
 ## Antes de la clase
 
-El instructor debe probar un usuario de cada grupo, confirmar los permisos y CloudTrail, y proporcionar los valores reales requeridos. Storage necesita el nombre exacto del evento de CloudTrail para actualizar Block Public Access del bucket.
+El instructor debe probar un usuario de cada grupo, confirmar los permisos y CloudTrail, y proporcionar los valores reales requeridos. Storage usa el evento de CloudTrail `PutBucketPublicAccessBlock` para actualizar Block Public Access del bucket.
 
 El código es educativo y no se ha validado mediante integración en estas cuentas. Usa cuentas de laboratorio, recursos vacíos y eventos de ejemplo sin datos sensibles. La corrección es reactiva: puede existir una ventana temporal de exposición.
 
