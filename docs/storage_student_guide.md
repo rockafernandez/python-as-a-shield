@@ -20,7 +20,7 @@ Los nombres y las etiquetas distinguen mayúsculas de minúsculas. Usa solamente
 ## 2. Crea tu función Lambda
 
 1. Abre **Lambda → Functions → Create function → Author from scratch**.
-2. Usa exactamente el nombre `user01-Remediator`. Selecciona una versión de Python compatible actualmente.
+2. Usa exactamente el nombre `user01-Remediator`. En **Runtime**, selecciona **Python 3.14** (`python3.14`).
 3. Expande **Change default execution role** y selecciona **Use an existing role → user01-LambdaRole**. No crees un rol nuevo.
 4. Agrega `Workshop=true` y `Owner=user01` en las opciones de creación. Crea la función. Si la consola no permite enviar las etiquetas requeridas al crearla, pide ayuda al instructor.
 5. En **Configuration → General configuration**, comienza con **128 MB** y un tiempo máximo de ejecución de **10 segundos**. Deja la función fuera de una VPC.
