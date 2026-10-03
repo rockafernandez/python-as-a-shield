@@ -51,73 +51,119 @@ El límite que deniega todas las acciones impide que las políticas y claves del
 Configura `OWNER`, `NUMBER` y `ACCOUNT_ID`. Conserva el nombre de política en línea **WorkshopWildcardExercise**. El código verifica las etiquetas y el límite exacto, y modifica únicamente tu usuario de prueba y la política o clave del ejercicio. Conserva las demás políticas en línea. Reconoce el ejemplo con comodines literales; no evalúa todas las políticas posibles con permisos excesivos.
 
 ```python
+# Serializa los resultados en JSON para facilitar su lectura en CloudWatch Logs.
 import json
+# Permite decodificar documentos de política si IAM los entrega como texto URL-encoded.
 from urllib.parse import unquote
+# Boto3 permite llamar a las API de AWS con las credenciales temporales del rol de Lambda.
 import boto3
 
+# Configuración del participante: sustituye estos valores por los de tu cuenta y usuario.
+# Los nombres exactos delimitan los recursos que esta función puede corregir.
 OWNER = "user01"
 NUMBER = "01"
 ACCOUNT_ID = "REPLACE_IDENTITY_ACCOUNT_ID"
 TARGET = f"Workshop-Target-{NUMBER}"
 INLINE_POLICY = "WorkshopWildcardExercise"
 ADMIN = "arn:aws:iam::aws:policy/AdministratorAccess"
+# IAM es un servicio global; el evento del taller se valida en us-east-1.
+# El cliente usa el rol de ejecución y no las credenciales del usuario de prueba.
 iam = boto3.client("iam")
 
 
+# Punto de entrada de Lambda. EventBridge entrega el evento completo en event;
+# context contiene información de la ejecución y no se necesita en este ejemplo.
 def lambda_handler(event, context):
+    # El sobre de EventBridge contiene cuenta, región e identificador del evento.
+    # detail contiene la llamada registrada por CloudTrail: servicio, usuario y parámetros.
     d = event.get("detail", {})
+    # userName identifica el objetivo; policyArn, policyName o responseElements
+    # se usan después según el caso. El objetivo es distinto del usuario de inicio de sesión.
     p = d.get("requestParameters") or {}
+    # Construye el ARN del participante que debe haber provocado el cambio.
+    # Las llamadas del rol de esta Lambda quedan fuera de alcance, evitando ciclos.
     caller = f"arn:aws:iam::{ACCOUNT_ID}:user/workshop/{OWNER}"
+    # Rechaza eventos de otra cuenta, región o identidad y llamadas que fallaron.
+    # Esta validación se repite aquí aunque la regla de EventBridge también filtre eventos.
     if (event.get("account") != ACCOUNT_ID or event.get("region") != "us-east-1"
             or d.get("eventSource") != "iam.amazonaws.com"
             or d.get("userIdentity", {}).get("arn") != caller
             or "errorCode" in d or p.get("userName") != TARGET):
         return {"outcome": "out_of_scope"}
+    # Consulta el usuario real y verifica etiquetas y ARN del límite obligatorio.
+    # El límite de denegación total mantiene al objetivo sin permisos efectivos,
+    # incluso mientras tiene AdministratorAccess, una política amplia o una clave activa.
     user = iam.get_user(UserName=TARGET)["User"]
     tags = {t["Key"]: t["Value"] for t in iam.list_user_tags(UserName=TARGET)["Tags"]}
     boundary = f"arn:aws:iam::{ACCOUNT_ID}:policy/workshop/Workshop-Target-DenyAll"
     if (tags.get("Workshop") != "true" or tags.get("Owner") != OWNER
             or user.get("PermissionsBoundary", {}).get("PermissionsBoundaryArn") != boundary):
+        # Detiene la ejecución si la identidad no cumple las protecciones del taller.
+        # No intenta corregir un objetivo cuya pertenencia o límite son distintos.
         raise ValueError("Target ownership or deny-all boundary mismatch")
+    # Selecciona la corrección por eventName; por defecto el objetivo ya cumple.
     name = d.get("eventName")
     outcome = "already_compliant"
+    # Caso 1: retirar exclusivamente AdministratorAccess del usuario de prueba.
     if name == "AttachUserPolicy":
         if p.get("policyArn") != ADMIN:
             return {"outcome": "out_of_scope"}
+        # Lista todas las páginas de políticas adjuntas para comprobar el estado actual.
         policies = []
         for page in iam.get_paginator("list_attached_user_policies").paginate(UserName=TARGET):
             policies.extend(page["AttachedPolicies"])
+        # Desvincula la política si sigue presente; no elimina la política administrada
+        # ni modifica el límite del objetivo. Si ya fue retirada, no realiza cambios.
         if any(x["PolicyArn"] == ADMIN for x in policies):
             iam.detach_user_policy(UserName=TARGET, PolicyArn=ADMIN)
             outcome = "admin_policy_detached"
+    # Caso 2: revisar únicamente la política en línea con el nombre del ejercicio.
     elif name == "PutUserPolicy":
         if p.get("policyName") != INLINE_POLICY:
             return {"outcome": "out_of_scope"}
+        # Lee la política actual. Si otra invocación ya la eliminó, continúa con un
+        # documento vacío para que repetir el evento no provoque un error por ausencia.
         try:
             doc = iam.get_user_policy(UserName=TARGET, PolicyName=INLINE_POLICY)["PolicyDocument"]
         except iam.exceptions.NoSuchEntityException:
             doc = {}
+        # Boto3 suele devolver un diccionario; también se admite texto codificado.
         if isinstance(doc, str):
             doc = json.loads(unquote(doc))
+        # Normaliza una instrucción única a una lista para recorrer ambas formas de JSON.
         statements = doc.get("Statement", [])
         if isinstance(statements, dict):
             statements = [statements]
+        # Detecta el comodín literal *, como texto o como elemento de una lista.
+        # No analiza patrones parciales ni calcula los permisos efectivos de toda la política.
         def wildcard(value):
             return value == "*" or isinstance(value, list) and "*" in value
+        # Si una misma instrucción Allow tiene Action=* y Resource=*, elimina toda
+        # la política en línea del ejercicio. Las demás políticas en línea se conservan.
         if any(s.get("Effect") == "Allow" and wildcard(s.get("Action"))
                and wildcard(s.get("Resource")) for s in statements):
             iam.delete_user_policy(UserName=TARGET, PolicyName=INLINE_POLICY)
             outcome = "exercise_policy_deleted"
+    # Caso 3: desactivar solamente la clave nueva identificada por este evento.
     elif name == "CreateAccessKey":
+        # El ID proviene de la respuesta de CreateAccessKey, no de los parámetros.
+        # No se extrae, utiliza ni registra el secreto de la clave.
         key_id = ((d.get("responseElements") or {}).get("accessKey") or {}).get("accessKeyId")
         if not key_id:
             return {"outcome": "missing_key_id"}
+        # Consulta el estado actual de las claves del objetivo para evitar actualizar
+        # una clave que ya fue eliminada o desactivada por otra invocación.
         keys = iam.list_access_keys(UserName=TARGET)["AccessKeyMetadata"]
         if any(k["AccessKeyId"] == key_id and k["Status"] == "Active" for k in keys):
+            # Marca la clave como Inactive. No elimina otras claves ni cambia el login
+            # del participante; el objetivo de prueba no tiene acceso a la consola.
             iam.update_access_key(UserName=TARGET, AccessKeyId=key_id, Status="Inactive")
             outcome = "key_deactivated"
     else:
+        # No modifica el usuario ante eventos distintos de los tres casos del taller.
         return {"outcome": "unsupported_event"}
+    # Registra únicamente el identificador, el recurso y el resultado de la corrección.
+    # No imprime el evento completo ni credenciales. Devuelve el mismo resumen al invocador.
     result = {"event_id": event.get("id"), "resource": TARGET, "outcome": outcome}
     print(json.dumps(result))
     return result

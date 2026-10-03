@@ -52,54 +52,88 @@ Configura `OWNER`, `NUMBER` y `ACCOUNT_ID`. Mantén `S3_BPA_EVENT = "PutBucketPu
 Si la prueba piloto muestra nombres distintos en los campos de la solicitud o falta queueUrl/bucketName, pide al instructor que adapte la extracción antes de la clase. No retires las comprobaciones de alcance. El código conserva el cifrado KMS existente; este laboratorio comienza con SSE-SQS y no incluye cambios de KMS.
 
 ```python
+# Serializa los resultados en JSON para facilitar su lectura en CloudWatch Logs.
 import json
+# Boto3 permite llamar a las API de AWS con las credenciales temporales del rol de Lambda.
 import boto3
 
+# Configuración del participante: sustituye estos valores por los de tu cuenta y usuario.
+# Los nombres exactos delimitan los recursos que esta función puede corregir.
 OWNER = "user01"
 NUMBER = "01"
 ACCOUNT_ID = "REPLACE_STORAGE_ACCOUNT_ID"
-# Bucket-level CloudTrail event for updating S3 Block Public Access.
+# Nombre de CloudTrail para actualizar Block Public Access de un bucket.
+# Difiere del nombre de la operación de Boto3: put_public_access_block.
 S3_BPA_EVENT = "PutBucketPublicAccessBlock"
 BUCKET = f"workshop-{ACCOUNT_ID}-student-{NUMBER}-pythonshield"
 QUEUE = f"{OWNER}-Queue"
 QUEUE_ARN = f"arn:aws:sqs:us-east-1:{ACCOUNT_ID}:{QUEUE}"
+# Reutiliza los clientes de S3 y SQS durante la vida del entorno de Lambda.
 s3 = boto3.client("s3", region_name="us-east-1")
 sqs = boto3.client("sqs", region_name="us-east-1")
 
 
+# Punto de entrada de Lambda. EventBridge entrega el evento completo en event;
+# context contiene información de la ejecución y no se necesita en este ejemplo.
 def lambda_handler(event, context):
+    # El sobre de EventBridge contiene cuenta, región e identificador del evento.
+    # detail contiene la llamada registrada por CloudTrail: servicio, usuario y parámetros.
     d = event.get("detail", {})
+    # Los parámetros permiten identificar el bucket o la URL de la cola modificada.
     p = d.get("requestParameters") or {}
+    # Construye el ARN del participante que debe haber provocado el cambio.
+    # Las llamadas del rol de esta Lambda quedan fuera de alcance, evitando ciclos.
     caller = f"arn:aws:iam::{ACCOUNT_ID}:user/workshop/{OWNER}"
+    # Rechaza eventos de otra cuenta, región o identidad y llamadas que fallaron.
+    # Esta validación se repite aquí aunque la regla de EventBridge también filtre eventos.
     if (event.get("account") != ACCOUNT_ID or event.get("region") != "us-east-1"
             or d.get("userIdentity", {}).get("arn") != caller or "errorCode" in d):
         return {"outcome": "out_of_scope"}
+    # Por defecto no hay cambios: los eventos repetidos deben ser seguros de procesar.
     outcome = "already_compliant"
+    # Caso S3: solo procesa el cambio de Block Public Access del bucket asignado.
     if d.get("eventSource") == "s3.amazonaws.com" and d.get("eventName") == S3_BPA_EVENT:
         if p.get("bucketName") != BUCKET:
             return {"outcome": "out_of_scope"}
         resource = BUCKET
+        # Consulta la configuración actual, en lugar de asumir que sigue igual al evento.
+        # ExpectedBucketOwner exige que el bucket pertenezca a la cuenta configurada.
         settings = s3.get_public_access_block(Bucket=BUCKET, ExpectedBucketOwner=ACCOUNT_ID)["PublicAccessBlockConfiguration"]
+        # Estado esperado: habilitar las cuatro protecciones de acceso público.
+        # BlockPublicAcls rechaza ACL públicas e IgnorePublicAcls ignora ACL públicas existentes.
+        # BlockPublicPolicy rechaza políticas públicas y RestrictPublicBuckets restringe
+        # el acceso de buckets con políticas públicas. Solo se modifica el nivel de bucket.
         desired = {k: True for k in ("BlockPublicAcls", "IgnorePublicAcls",
                                     "BlockPublicPolicy", "RestrictPublicBuckets")}
+        # Restaura las cuatro opciones si falta alguna; si ya están activas, no escribe.
         if not all(settings.get(k) for k in desired):
             s3.put_public_access_block(Bucket=BUCKET, ExpectedBucketOwner=ACCOUNT_ID,
                                       PublicAccessBlockConfiguration=desired)
             outcome = "bucket_protection_restored"
+    # Caso SQS: SetQueueAttributes puede cambiar la política o el cifrado.
+    # En cada evento se revisan ambos atributos, independientemente de cuál cambió.
     elif d.get("eventSource") == "sqs.amazonaws.com" and d.get("eventName") == "SetQueueAttributes":
+        # Resuelve la URL de la cola en la cuenta esperada y la compara con el evento.
         url = sqs.get_queue_url(QueueName=QUEUE, QueueOwnerAWSAccountId=ACCOUNT_ID)["QueueUrl"]
         if p.get("queueUrl") != url:
             return {"outcome": "out_of_scope"}
         resource = QUEUE
+        # Lee el ARN, la política y las modalidades de cifrado del estado actual.
         attrs = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=[
             "QueueArn", "Policy", "SqsManagedSseEnabled", "KmsMasterKeyId"])["Attributes"]
         if attrs.get("QueueArn") != QUEUE_ARN:
             return {"outcome": "out_of_scope"}
-        # IAM independently enforces the queue's immutable ownership tags.
+        # El ARN debe coincidir exactamente con la cola asignada.
+        # Los permisos de IAM también exigen sus etiquetas de pertenencia protegidas.
+        # La función no necesita consultar las etiquetas con otra llamada a SQS.
         policy = json.loads(attrs.get("Policy") or '{"Version":"2012-10-17","Statement":[]}')
+        # Normaliza Statement a una lista: JSON admite una instrucción o varias.
         statements = policy.get("Statement", [])
         if isinstance(statements, dict):
             statements = [statements]
+        # Reconoce únicamente la instrucción pública específica del laboratorio:
+        # Sid esperado, Allow, principal público, SendMessage y ARN de esta cola.
+        # No pretende detectar todas las variantes de políticas públicas de producción.
         def exercise_public(s):
             principal = s.get("Principal")
             actions = s.get("Action", [])
@@ -108,18 +142,27 @@ def lambda_handler(event, context):
             return (s.get("Sid") == "WorkshopPublicSend" and s.get("Effect") == "Allow"
                     and (principal == "*" or principal == {"AWS": "*"})
                     and "sqs:SendMessage" in actions and s.get("Resource") == QUEUE_ARN)
+        # Conserva todas las instrucciones ajenas al ejercicio y elimina solo la coincidente.
         kept = [s for s in statements if not exercise_public(s)]
+        # Acumula únicamente los atributos que necesitan corrección para enviarlos juntos.
         changes = {}
         if len(kept) != len(statements):
             policy["Statement"] = kept
             changes["Policy"] = json.dumps(policy)
+        # Activa SSE-SQS si está deshabilitado y no hay una clave KMS configurada.
+        # Conserva el cifrado KMS existente; no lo reemplaza por SSE-SQS.
         if attrs.get("SqsManagedSseEnabled") != "true" and not attrs.get("KmsMasterKeyId"):
             changes["SqsManagedSseEnabled"] = "true"
+        # Si no hay diferencias, evita una escritura. La API acepta las correcciones;
+        # confirma después en la consola el estado de la política y del cifrado.
         if changes:
             sqs.set_queue_attributes(QueueUrl=url, Attributes=changes)
             outcome = "queue_repair_requested"
     else:
+        # Otros servicios o nombres de evento no tienen una corrección definida aquí.
         return {"outcome": "unsupported_event"}
+    # Registra únicamente el identificador, el recurso y el resultado de la corrección.
+    # No imprime el evento completo ni credenciales. Devuelve el mismo resumen al invocador.
     result = {"event_id": event.get("id"), "resource": resource, "outcome": outcome}
     print(json.dumps(result))
     return result

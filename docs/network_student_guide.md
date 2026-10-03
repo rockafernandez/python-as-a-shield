@@ -62,67 +62,104 @@ No crees instancias, internet gateways, rutas ni NAT gateways. El laboratorio mo
 Configura `OWNER`, `ACCOUNT_ID` y `VPC_ID` al inicio. Los tres casos del grupo de seguridad comparten una rama porque producen el mismo evento de API. El código elimina reglas de entrada IPv4 públicas para rangos TCP que incluyen SSH/RDP y reglas públicas de todos los protocolos. Conserva las reglas no relacionadas. El acceso público por IPv6 y otros servicios están fuera de estos ejercicios.
 
 ```python
+# Serializa los resultados en JSON para facilitar su lectura en CloudWatch Logs.
 import json
+# Boto3 permite llamar a las API de AWS con las credenciales temporales del rol de Lambda.
 import boto3
 
+# Configuración del participante: sustituye estos valores por los de tu cuenta y usuario.
+# Los nombres exactos delimitan los recursos que esta función puede corregir.
 OWNER = "user01"
 ACCOUNT_ID = "REPLACE_NETWORK_ACCOUNT_ID"
 VPC_ID = "REPLACE_WORKSHOP_VPC_ID"
+# El cliente se reutiliza entre invocaciones cuando Lambda conserva el entorno.
+# Todas las consultas y modificaciones de EC2 se realizan en us-east-1.
 ec2 = boto3.client("ec2", region_name="us-east-1")
 
 
+# Comprueba el estado real del recurso: VPC del taller y etiquetas de pertenencia.
+# No basta con que el evento mencione un recurso; debe pertenecer a este participante.
 def owned(resource):
     tags = {t["Key"]: t["Value"] for t in resource.get("Tags", [])}
     return (resource.get("VpcId") == VPC_ID
             and tags.get("Workshop") == "true" and tags.get("Owner") == OWNER)
 
 
+# Punto de entrada de Lambda. EventBridge entrega el evento completo en event;
+# context contiene información de la ejecución y no se necesita en este ejemplo.
 def lambda_handler(event, context):
+    # El sobre de EventBridge contiene cuenta, región e identificador del evento.
+    # detail contiene la llamada registrada por CloudTrail: servicio, usuario y parámetros.
     d = event.get("detail", {})
+    # Construye el ARN del participante que debe haber provocado el cambio.
+    # Las llamadas del rol de esta Lambda quedan fuera de alcance, evitando ciclos.
     caller = f"arn:aws:iam::{ACCOUNT_ID}:user/workshop/{OWNER}"
+    # Rechaza eventos de otra cuenta, región o identidad y llamadas que fallaron.
+    # Esta validación se repite aquí aunque la regla de EventBridge también filtre eventos.
     if (event.get("account") != ACCOUNT_ID or event.get("region") != "us-east-1"
             or d.get("eventSource") != "ec2.amazonaws.com"
             or d.get("userIdentity", {}).get("arn") != caller or "errorCode" in d):
         return {"outcome": "out_of_scope"}
+    # Extrae los parámetros de la llamada y su nombre para seleccionar la corrección.
     p = d.get("requestParameters") or {}
     name = d.get("eventName")
+    # Caso de SG: una nueva regla de entrada requiere revisar las reglas actuales.
+    # No se confía únicamente en el contenido del evento, que puede llegar con retraso.
     if name == "AuthorizeSecurityGroupIngress":
         resource_id = p.get("groupId")
         if not resource_id:
             return {"outcome": "missing_group_id"}
+        # Consulta el SG por su ID y verifica pertenencia antes de modificarlo.
         sg = ec2.describe_security_groups(GroupIds=[resource_id])["SecurityGroups"][0]
         if not owned(sg):
             return {"outcome": "out_of_scope"}
         removed = 0
+        # Recorre todas las páginas: una única respuesta puede no incluir todas las reglas.
         pager = ec2.get_paginator("describe_security_group_rules")
         for page in pager.paginate(Filters=[{"Name": "group-id", "Values": [resource_id]}]):
             for rule in page["SecurityGroupRules"]:
+                # Conserva las reglas de salida y las que no permiten cualquier IPv4.
+                # Este ejercicio no evalúa exposición por IPv6 ni otros rangos de direcciones.
                 if rule["IsEgress"] or rule.get("CidrIpv4") != "0.0.0.0/0":
                     continue
+                # Es insegura si permite todos los protocolos (-1), o TCP en un rango
+                # que incluye SSH (22) o RDP (3389), incluso si el rango es más amplio.
                 risky = rule["IpProtocol"] == "-1" or (
                     rule["IpProtocol"] in ("tcp", "6") and any(
                         rule.get("FromPort", -1) <= port <= rule.get("ToPort", -1)
                         for port in (22, 3389)))
                 if risky:
+                    # Elimina por ID solamente la regla insegura identificada.
+                    # Conserva las demás reglas del SG y cuenta las revocaciones realizadas.
                     ec2.revoke_security_group_ingress(
                         GroupId=resource_id, SecurityGroupRuleIds=[rule["SecurityGroupRuleId"]])
                     removed += 1
+        # Si el evento se repite después de corregir, no hay reglas que revocar:
+        # already_compliant indica que no se requirió otra modificación.
         outcome = f"removed_{removed}_rules" if removed else "already_compliant"
+    # Caso de subred: desactiva la asignación automática de IPv4 públicas al lanzar instancias.
     elif name == "ModifySubnetAttribute":
         resource_id = p.get("subnetId")
         if not resource_id:
             return {"outcome": "missing_subnet_id"}
+        # Obtiene el atributo actual y verifica VPC y etiquetas antes de actuar.
         subnet = ec2.describe_subnets(SubnetIds=[resource_id])["Subnets"][0]
         if not owned(subnet):
             return {"outcome": "out_of_scope"}
+        # Modifica únicamente este atributo cuando está habilitado.
+        # No cambia IP de instancias existentes, rutas ni otros atributos de la subred.
         if subnet["MapPublicIpOnLaunch"]:
             ec2.modify_subnet_attribute(SubnetId=resource_id,
                                        MapPublicIpOnLaunch={"Value": False})
+            # La API aceptó la solicitud; verifica después el atributo en la consola.
             outcome = "repair_requested"
         else:
             outcome = "already_compliant"
     else:
+        # Una llamada distinta de los dos casos anteriores no tiene corrección definida.
         return {"outcome": "unsupported_event"}
+    # Registra únicamente el identificador, el recurso y el resultado de la corrección.
+    # No imprime el evento completo ni credenciales. Devuelve el mismo resumen al invocador.
     result = {"event_id": event.get("id"), "resource": resource_id, "outcome": outcome}
     print(json.dumps(result))
     return result
