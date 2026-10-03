@@ -1,0 +1,133 @@
+{
+  "management_account_id": "REPLACE_MANAGEMENT_ID",
+  "accounts": [
+    {
+      "kind": "network",
+      "profile": "workshop-network",
+      "account_id": "REPLACE_ACCOUNT_ID",
+      "region": "us-east-1",
+      "instructor_role_arn": "arn:aws:iam::REPLACE_ACCOUNT_ID:role/REPLACE_EXACT_FEDERATED_ROLE_PATH_AND_NAME",
+      "students": [
+        {
+          "username": "user01",
+          "subnet_cidr": "10.90.1.0/24"
+        },
+        {
+          "username": "user02",
+          "subnet_cidr": "10.90.2.0/24"
+        },
+        {
+          "username": "user03",
+          "subnet_cidr": "10.90.3.0/24"
+        },
+        {
+          "username": "user04",
+          "subnet_cidr": "10.90.4.0/24"
+        },
+        {
+          "username": "user05",
+          "subnet_cidr": "10.90.5.0/24"
+        },
+        {
+          "username": "user06",
+          "subnet_cidr": "10.90.6.0/24"
+        },
+        {
+          "username": "user07",
+          "subnet_cidr": "10.90.7.0/24"
+        },
+        {
+          "username": "user08",
+          "subnet_cidr": "10.90.8.0/24"
+        },
+        {
+          "username": "user09",
+          "subnet_cidr": "10.90.9.0/24"
+        },
+        {
+          "username": "user10",
+          "subnet_cidr": "10.90.10.0/24"
+        }
+      ],
+      "workshop_vpc_id": "REPLACE_VPC_ID"
+    },
+    {
+      "kind": "identity",
+      "profile": "workshop-identity",
+      "account_id": "REPLACE_ACCOUNT_ID",
+      "region": "us-east-1",
+      "instructor_role_arn": "arn:aws:iam::REPLACE_ACCOUNT_ID:role/REPLACE_EXACT_FEDERATED_ROLE_PATH_AND_NAME",
+      "students": [
+        {
+          "username": "user01"
+        },
+        {
+          "username": "user02"
+        },
+        {
+          "username": "user03"
+        },
+        {
+          "username": "user04"
+        },
+        {
+          "username": "user05"
+        },
+        {
+          "username": "user06"
+        },
+        {
+          "username": "user07"
+        },
+        {
+          "username": "user08"
+        },
+        {
+          "username": "user09"
+        },
+        {
+          "username": "user10"
+        }
+      ]
+    },
+    {
+      "kind": "storage",
+      "profile": "workshop-storage",
+      "account_id": "REPLACE_ACCOUNT_ID",
+      "region": "us-east-1",
+      "instructor_role_arn": "arn:aws:iam::REPLACE_ACCOUNT_ID:role/REPLACE_EXACT_FEDERATED_ROLE_PATH_AND_NAME",
+      "students": [
+        {
+          "username": "user01"
+        },
+        {
+          "username": "user02"
+        },
+        {
+          "username": "user03"
+        },
+        {
+          "username": "user04"
+        },
+        {
+          "username": "user05"
+        },
+        {
+          "username": "user06"
+        },
+        {
+          "username": "user07"
+        },
+        {
+          "username": "user08"
+        },
+        {
+          "username": "user09"
+        },
+        {
+          "username": "user10"
+        }
+      ]
+    }
+  ]
+}

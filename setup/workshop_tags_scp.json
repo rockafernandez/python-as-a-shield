@@ -1,0 +1,233 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RequireWorkshopOnCreationAndTagging",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "s3:CreateBucket",
+        "s3:TagResource",
+        "sqs:CreateQueue",
+        "sqs:TagQueue",
+        "iam:CreateUser",
+        "iam:TagUser"
+      ],
+      "Resource": [
+        "arn:aws:ec2:*:*:security-group/*",
+        "arn:aws:ec2:*:*:subnet/*",
+        "arn:aws:s3:::*",
+        "arn:aws:sqs:*:*:*",
+        "arn:aws:iam::*:user/Workshop-Target-*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "aws:RequestTag/Workshop": "true"
+        }
+      }
+    },
+    {
+      "Sid": "RequireOwnerOnCreationAndTagging",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "s3:CreateBucket",
+        "s3:TagResource",
+        "sqs:CreateQueue",
+        "sqs:TagQueue",
+        "iam:CreateUser",
+        "iam:TagUser"
+      ],
+      "Resource": [
+        "arn:aws:ec2:*:*:security-group/*",
+        "arn:aws:ec2:*:*:subnet/*",
+        "arn:aws:s3:::*",
+        "arn:aws:sqs:*:*:*",
+        "arn:aws:iam::*:user/Workshop-Target-*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "aws:RequestTag/Owner": "${aws:PrincipalTag/Owner}"
+        }
+      }
+    },
+    {
+      "Sid": "RequirePrincipalOwner",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "s3:CreateBucket",
+        "s3:TagResource",
+        "sqs:CreateQueue",
+        "sqs:TagQueue",
+        "iam:CreateUser",
+        "iam:TagUser"
+      ],
+      "Resource": [
+        "arn:aws:ec2:*:*:security-group/*",
+        "arn:aws:ec2:*:*:subnet/*",
+        "arn:aws:s3:::*",
+        "arn:aws:sqs:*:*:*",
+        "arn:aws:iam::*:user/Workshop-Target-*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "Null": {
+          "aws:PrincipalTag/Owner": "true"
+        }
+      }
+    },
+    {
+      "Sid": "DoNotRemoveOrReplaceOwnershipTags",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:DeleteTags",
+        "s3:UntagResource",
+        "s3:PutBucketTagging",
+        "sqs:UntagQueue",
+        "iam:UntagUser"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "CreateTargetsWithDenyAllBoundary",
+      "Effect": "Deny",
+      "Action": "iam:CreateUser",
+      "Resource": "arn:aws:iam::*:user/Workshop-Target-*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::${aws:PrincipalAccount}:policy/workshop/Workshop-Target-DenyAll"
+        }
+      }
+    },
+    {
+      "Sid": "TagSecurityGroupsOnlyAtCreation",
+      "Effect": "Deny",
+      "Action": "ec2:CreateTags",
+      "Resource": "arn:aws:ec2:*:*:security-group/*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "ec2:CreateAction": "CreateSecurityGroup"
+        }
+      }
+    },
+    {
+      "Sid": "TagSubnetsOnlyAtCreation",
+      "Effect": "Deny",
+      "Action": "ec2:CreateTags",
+      "Resource": "arn:aws:ec2:*:*:subnet/*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "ec2:CreateAction": "CreateSubnet"
+        }
+      }
+    },
+    {
+      "Sid": "ManageOnlyMatchingWorkshop",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:DeleteSecurityGroup",
+        "ec2:ModifySubnetAttribute",
+        "ec2:DeleteSubnet",
+        "sqs:SetQueueAttributes",
+        "sqs:DeleteQueue"
+      ],
+      "Resource": [
+        "arn:aws:ec2:*:*:security-group/*",
+        "arn:aws:ec2:*:*:subnet/*",
+        "arn:aws:sqs:*:*:*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "aws:ResourceTag/Workshop": "true"
+        }
+      }
+    },
+    {
+      "Sid": "ManageOnlyMatchingOwner",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:DeleteSecurityGroup",
+        "ec2:ModifySubnetAttribute",
+        "ec2:DeleteSubnet",
+        "sqs:SetQueueAttributes",
+        "sqs:DeleteQueue"
+      ],
+      "Resource": [
+        "arn:aws:ec2:*:*:security-group/*",
+        "arn:aws:ec2:*:*:subnet/*",
+        "arn:aws:sqs:*:*:*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::*:user/workshop/*",
+            "arn:aws:iam::*:role/workshop-execution/*"
+          ]
+        },
+        "StringNotEquals": {
+          "aws:ResourceTag/Owner": "${aws:PrincipalTag/Owner}"
+        }
+      }
+    }
+  ]
+}
