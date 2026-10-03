@@ -1,48 +1,48 @@
-# Network group — Python remediation workshop
+# Grupo Network — Taller de corrección automática con Python
 
-For students `user01`–`user10` in the **network account**. Follow only this group guide.
+Para los estudiantes `user01`–`user10` de la cuenta **network**. Sigue únicamente la guía de tu grupo.
 
-## 1. Sign in and identify your resources
+## 1. Inicia sesión e identifica tus recursos
 
-1. Use only your own login URL, username and temporary password supplied by the instructor.
-2. Change your password when prompted. Select **US East (N. Virginia), us-east-1**.
-3. Confirm you are in your assigned account. Students use the console; no CLI profile, access key or CloudShell is needed.
-4. Replace `user01` everywhere with your username, and `01` with your two-digit participant number.
-5. Add these tags **in each resource creation request**, before submitting:
+1. Usa únicamente la URL de inicio de sesión, el usuario y la contraseña temporal que te entregue el instructor.
+2. Cambia la contraseña cuando se solicite. Selecciona **US East (N. Virginia), us-east-1**.
+3. Confirma que estás en la cuenta asignada. Trabajarás desde la consola; no necesitas perfiles de CLI, claves de acceso ni CloudShell.
+4. Sustituye `user01` por tu usuario y `01` por tu número de participante de dos dígitos en toda la guía.
+5. Incluye estas etiquetas **en la solicitud de creación de cada recurso**, antes de confirmar:
 
 ```text
 Workshop = true
 Owner = user01
 ```
 
-Names and tags are case-sensitive. Use your own resources only. Do not change your login user, existing roles, policies, boundaries, CloudTrail or account settings.
+Los nombres y las etiquetas distinguen mayúsculas de minúsculas. Usa solamente tus recursos. No modifiques tu usuario de inicio de sesión, los roles existentes, las políticas, los límites de permisos, CloudTrail ni la configuración de la cuenta.
 
-## 2. Create your Lambda function
+## 2. Crea tu función Lambda
 
-1. Open **Lambda → Functions → Create function → Author from scratch**.
-2. Name it exactly `user01-Remediator`. Choose a currently supported Python runtime.
-3. Expand **Change default execution role**; choose **Use an existing role → user01-LambdaRole**. Do not create a new role.
-4. Add `Workshop=true` and `Owner=user01` in the creation options. Create the function. If the console cannot send required tags at creation, ask the instructor to assist.
-5. Under **Configuration → General configuration**, use **128 MB** and a **10-second timeout** to start. Keep the function outside a VPC.
-6. Paste the group code below into `lambda_function.py`. Replace every indicated value. Keep handler `lambda_function.lambda_handler`. Choose **Deploy** after each edit.
-7. Leave concurrency settings unchanged. Network/storage quota increases are pending; the instructor will configure reservations later if approved.
+1. Abre **Lambda → Functions → Create function → Author from scratch**.
+2. Usa exactamente el nombre `user01-Remediator`. Selecciona una versión de Python compatible actualmente.
+3. Expande **Change default execution role** y selecciona **Use an existing role → user01-LambdaRole**. No crees un rol nuevo.
+4. Agrega `Workshop=true` y `Owner=user01` en las opciones de creación. Crea la función. Si la consola no permite enviar las etiquetas requeridas al crearla, pide ayuda al instructor.
+5. En **Configuration → General configuration**, comienza con **128 MB** y un tiempo máximo de ejecución de **10 segundos**. Deja la función fuera de una VPC.
+6. Pega el código de tu grupo en `lambda_function.py`. Sustituye los valores indicados. Conserva el controlador `lambda_function.lambda_handler`. Pulsa **Deploy** después de cada cambio.
+7. No cambies la configuración de concurrencia. Las solicitudes de aumento de cuota de las cuentas Network y Storage están pendientes; el instructor configurará las reservas si se aprueban.
 
-The execution role allows repairs. The separate `user01-EventRole` allows EventBridge to invoke the function. Lambda obtains temporary credentials automatically; never paste AWS credentials into code.
+El rol de ejecución permite aplicar las correcciones. El rol separado `user01-EventRole` permite que EventBridge invoque la función. Lambda obtiene credenciales temporales automáticamente; nunca pegues credenciales de AWS en el código.
 
-The supplied code is an educational starting point aligned with the workshop permissions. It has not been tested in your AWS accounts. Pilot one case first. It deliberately repairs a narrow lab baseline rather than assessing every possible production misconfiguration.
+El código es un ejemplo educativo alineado con los permisos del taller. No se ha probado en tus cuentas de AWS. Prueba primero un caso. Corrige una configuración concreta del laboratorio; no evalúa todas las posibles configuraciones inseguras de producción.
 
-## 3. Create your security group and subnet
+## 3. Crea tu grupo de seguridad y tu subred
 
-The instructor supplies the network account ID, workshop VPC ID and approved CIDR. The VPC already exists; students create the SG and subnet.
+El instructor proporciona el ID de la cuenta Network, el ID de la VPC del taller y el CIDR aprobado. La VPC ya existe; los estudiantes crean el grupo de seguridad y la subred.
 
-1. Open **VPC → Security groups → Create security group**. Name it `user01-SG`, add a description, select the workshop VPC and add both mandatory tags. Leave inbound rules empty; keep default outbound rules.
-2. Record the new `sg-...` ID. Do not add tags to individual SG rules; rule tagging is not granted.
-3. Open **VPC → Subnets → Create subnet**. Select the workshop VPC, an instructor-approved Availability Zone and your assigned CIDR. Name it `user01-Subnet`; include both mandatory tags. Create only one subnet in this request.
-4. Record the `subnet-...` ID. Leave automatic public IPv4 assignment disabled initially.
+1. Abre **VPC → Security groups → Create security group**. Usa `user01-SG`, agrega una descripción, selecciona la VPC del taller e incluye ambas etiquetas requeridas. Deja vacías las reglas de entrada y conserva las reglas de salida predeterminadas.
+2. Anota el ID `sg-...`. No agregues etiquetas a reglas individuales; no tienes ese permiso.
+3. Abre **VPC → Subnets → Create subnet**. Selecciona la VPC del taller, una zona de disponibilidad aprobada y tu CIDR asignado. Usa `user01-Subnet` e incluye ambas etiquetas. Crea una sola subred por solicitud.
+4. Anota el ID `subnet-...`. Deja deshabilitada inicialmente la asignación automática de IPv4 pública.
 
-Default example CIDRs are below. **The instructor's actual configuration overrides this table.** Do not reuse another student's range.
+Estos son los CIDR del ejemplo predeterminado. **La configuración real del instructor tiene prioridad.** No uses el rango de otro estudiante.
 
-| Student | Example subnet CIDR |
+| Estudiante | CIDR de ejemplo |
 |---|---|
 | user01 | 10.90.1.0/24 |
 | user02 | 10.90.2.0/24 |
@@ -55,11 +55,11 @@ Default example CIDRs are below. **The instructor's actual configuration overrid
 | user09 | 10.90.9.0/24 |
 | user10 | 10.90.10.0/24 |
 
-Do not create instances, internet gateways, routes or NAT gateways. The lab uses configuration changes, with no servers attached.
+No crees instancias, internet gateways, rutas ni NAT gateways. El laboratorio modifica configuraciones sin conectar servidores.
 
-## 4. Deploy the group remediation code
+## 4. Implementa el código de corrección de tu grupo
 
-Set `OWNER`, `ACCOUNT_ID` and `VPC_ID` at the top. The three SG cases share one branch because they produce the same API event. This code removes public IPv4 ingress for TCP ranges covering SSH/RDP, and all-protocol public rules. It preserves unrelated rules. IPv6 public access and other services are outside these exercises.
+Configura `OWNER`, `ACCOUNT_ID` y `VPC_ID` al inicio. Los tres casos del grupo de seguridad comparten una rama porque producen el mismo evento de API. El código elimina reglas de entrada IPv4 públicas para rangos TCP que incluyen SSH/RDP y reglas públicas de todos los protocolos. Conserva las reglas no relacionadas. El acceso público por IPv6 y otros servicios están fuera de estos ejercicios.
 
 ```python
 import json
@@ -128,18 +128,18 @@ def lambda_handler(event, context):
     return result
 ```
 
-## 5. Connect EventBridge to your function
+## 5. Conecta EventBridge con tu función
 
-1. Open **Amazon EventBridge → Rules → Create rule**. Use the **default event bus** and an **event-pattern rule**, not a schedule.
-2. Name it with your username prefix as shown below. Use the Advanced Builder/custom JSON pattern editor if needed.
-3. Paste the pattern below; replace `ACCOUNT_ID` and `user01`. For Storage, also replace `S3_BPA_EVENT` with the instructor's observed event name.
-4. Choose target **AWS service → Lambda function → user01-Remediator**.
-5. For target permissions, choose **Use existing role → user01-EventRole**. Pass the **entire matched event**, with no input transformation.
-6. If the wizard proposes creating a role or adding a Lambda resource policy, choose the existing-role option. If that option is unavailable, ask the instructor; do not request broader permissions.
-7. Add the mandatory Workshop/Owner tags if the rule creation form supports them. Review and enable the rule.
+1. Abre **Amazon EventBridge → Rules → Create rule**. Usa el bus **default** y una regla basada en un patrón de eventos, no una programación.
+2. Usa el prefijo de tu usuario en el nombre indicado abajo. Si es necesario, utiliza Advanced Builder o el editor de patrones JSON personalizados.
+3. Pega el patrón y sustituye `ACCOUNT_ID` y `user01`. En Storage, sustituye también `S3_BPA_EVENT` por el nombre del evento observado por el instructor.
+4. Selecciona el destino **AWS service → Lambda function → user01-Remediator**.
+5. En los permisos del destino, selecciona **Use existing role → user01-EventRole**. Envía el **evento completo**, sin transformar la entrada.
+6. Si el asistente propone crear un rol o agregar una política de recursos a Lambda, selecciona el rol existente. Si esa opción no aparece, consulta al instructor; no solicites permisos más amplios.
+7. Agrega las etiquetas Workshop/Owner requeridas si el formulario de creación de la regla lo permite. Revisa y habilita la regla.
 
-The caller filter excludes repairs made by the Lambda role, helping prevent loops. `errorCode` filtering ignores unsuccessful API calls. The handler repeats scope checks and reads current state because events can be duplicated or delayed.
-Create rule **`user01-Network`**. One rule can route this group’s API events to one function.
+El filtro del usuario que realiza la llamada excluye las correcciones hechas por el rol de Lambda y ayuda a evitar ciclos. El filtro `errorCode` ignora llamadas fallidas. El controlador vuelve a comprobar el alcance y el estado actual porque los eventos pueden duplicarse o llegar con retraso.
+Crea la regla **`user01-Network`**. Una sola regla puede enviar los eventos de API del grupo a la misma función.
 
 ```json
 {
@@ -177,55 +177,55 @@ Create rule **`user01-Network`**. One rule can route this group’s API events t
 }
 ```
 
-## 6. Run the exercises, one at a time
+## 6. Realiza los ejercicios, uno a la vez
 
 
-### Exercise 1 — Public SSH
+### Ejercicio 1 — SSH público
 
-1. Select your SG → **Inbound rules → Edit inbound rules → Add rule**.
-2. Choose SSH/TCP port **22**, source IPv4 **0.0.0.0/0**. Save without rule tags.
-3. Refresh: the public SSH rule should disappear. Expect `removed_1_rules` if it was the only offending rule.
+1. Selecciona tu grupo de seguridad → **Inbound rules → Edit inbound rules → Add rule**.
+2. Elige SSH/TCP, puerto **22**, origen IPv4 **0.0.0.0/0**. Guarda sin etiquetas en la regla.
+3. Actualiza la vista: la regla SSH pública debe desaparecer. Si era la única regla insegura, espera `removed_1_rules`.
 
-### Exercise 2 — Public RDP
+### Ejercicio 2 — RDP público
 
-1. Add TCP port **3389**, source **0.0.0.0/0**, to the same SG.
-2. Save, then confirm the rule is removed.
+1. Agrega TCP, puerto **3389**, origen **0.0.0.0/0**, al mismo grupo.
+2. Guarda y confirma que la regla se elimina.
 
-### Exercise 3 — All-protocol public ingress
+### Ejercicio 3 — Entrada pública de todos los protocolos
 
-1. Add **All traffic**, source **0.0.0.0/0**.
-2. Save, then confirm that rule is removed. Do not attach this SG to a workload.
+1. Agrega **All traffic**, origen **0.0.0.0/0**.
+2. Guarda y confirma que se elimina esa regla. No asocies el grupo a una carga de trabajo.
 
-### Exercise 4 — Subnet automatic public IPv4
+### Ejercicio 4 — IPv4 pública automática en la subred
 
-1. Select your subnet → **Actions → Edit subnet settings**.
-2. Enable **auto-assign public IPv4 address** and save.
-3. Refresh and confirm the setting becomes disabled. It changes the subnet default; no instance or billable public IP is created.
+1. Selecciona tu subred → **Actions → Edit subnet settings**.
+2. Habilita **auto-assign public IPv4 address** y guarda.
+3. Actualiza y confirma que queda deshabilitado. Cambia el valor predeterminado de la subred; no crea una instancia ni una IP pública facturable.
 
-## 7. Verify and record evidence
+## 7. Verifica y registra la evidencia
 
-For **each** exercise:
+Para **cada** ejercicio:
 
-1. Refresh the resource configuration until the expected compliant state appears. Event delivery and attribute propagation are asynchronous; do not assume immediate repair.
-2. Open your function's **Monitor → View CloudWatch logs**, or your pre-created `/aws/lambda/user01-Remediator` log group in CloudWatch. Find the event ID, resource and outcome.
-3. Save a screenshot of the compliant state and a sanitized log entry. Do not include passwords, access-key secrets or entire IAM events.
-4. With the instructor's sanitized EventBridge event, use **Lambda → Test → Create new event**. Keep its full EventBridge envelope and your own caller/resource values. Invoke it again after repair; expect `already_compliant` and no further writes.
-5. Record the event name, resource identifier, repair result and duplicate/no-op result.
+1. Actualiza la configuración del recurso hasta observar el estado esperado. La entrega del evento y la propagación de atributos son asíncronas; la corrección puede tardar.
+2. Abre **Monitor → View CloudWatch logs** en tu función, o el grupo `/aws/lambda/user01-Remediator` precreado en CloudWatch. Busca el identificador del evento, el recurso y el resultado.
+3. Guarda una captura del estado corregido y una entrada de registro sin datos sensibles. No incluyas contraseñas, secretos de claves de acceso ni eventos completos de IAM.
+4. Con el evento de EventBridge sin datos sensibles proporcionado por el instructor, abre **Lambda → Test → Create new event**. Conserva la estructura completa del evento y los valores de tu usuario y recurso. Invócalo otra vez después de la corrección: debe devolver `already_compliant` sin nuevas modificaciones.
+5. Registra el nombre del evento, el identificador del recurso, el resultado de la corrección y el resultado de repetir el evento sin cambios.
 
-A logged `repair_requested` is not proof of completion: confirm the resource state separately. If no log arrives, check the enabled rule, exact caller ARN, account/Region, target and existing event role. Ask the instructor to verify active CloudTrail management-event logging. Students do not need permission to configure a trail or inspect every account event.
+El resultado `repair_requested` en el registro no confirma que la corrección terminó: verifica también el estado del recurso. Si no aparecen registros, revisa la regla habilitada, el ARN exacto del usuario que hizo la llamada, la cuenta, la región, el destino y el rol existente de EventBridge. Pide al instructor que confirme que CloudTrail está registrando eventos de administración. Los estudiantes no necesitan configurar un trail ni inspeccionar todos los eventos de la cuenta.
 
-If logs show `AccessDenied`, check assigned names, creation tags and role selection. Do not remove a boundary or loosen an SCP. If the function reports missing event fields, show the instructor a sanitized event so its actual shape can be checked.
+Si aparece `AccessDenied`, revisa los nombres asignados, las etiquetas de creación y el rol seleccionado. No retires un límite de permisos ni flexibilices una SCP. Si la función informa que faltan campos, comparte con el instructor un evento sin datos sensibles para revisar su estructura real.
 
-With shared concurrency, short delays may occur when many students test at once. Trigger one change, verify it, then move to the next. Ask the instructor to inspect **Errors, Throttles and Duration** if delays persist.
-## 8. Finish and clean up
+Con concurrencia compartida puede haber demoras si muchos estudiantes prueban al mismo tiempo. Provoca un cambio, verifica el resultado y después continúa. Si las demoras persisten, pide al instructor que revise **Errors, Throttles y Duration**.
+## 8. Finaliza y limpia los recursos
 
-1. Disable your EventBridge rules first. Keep them disabled during cleanup.
-2. Save your evidence and code. Restore any remaining exercise misconfiguration manually if remediation failed.
-3. Remove only your allowed exercise resources, following the group notes below.
-4. Notify the instructor. The instructor removes functions, log groups, protected IAM targets, participant identities, roles and policies; students cannot delete/recreate their Lambda functions.
+1. Deshabilita primero tus reglas de EventBridge y mantenlas deshabilitadas durante la limpieza.
+2. Guarda la evidencia y el código. Si una corrección falló, restaura manualmente la configuración segura.
+3. Elimina únicamente los recursos de ejercicios que tus permisos permitan, según las indicaciones del grupo.
+4. Notifica al instructor. Él elimina las funciones, los grupos de registros, los usuarios de prueba protegidos, las identidades de participantes, los roles y las políticas. Los estudiantes no pueden eliminar y volver a crear sus funciones Lambda.
 
-After disabling rules, delete your empty subnet and your unused SG. Keep the workshop VPC intact.
-## References
+Después de deshabilitar la regla, elimina tu subred vacía y tu grupo de seguridad sin uso. Conserva la VPC del taller.
+## Referencias
 
 - https://docs.aws.amazon.com/vpc/latest/userguide/create-subnets.html
 - https://docs.aws.amazon.com/boto3/latest/reference/services/ec2/client/revoke_security_group_ingress.html

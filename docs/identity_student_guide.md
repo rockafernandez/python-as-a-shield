@@ -1,54 +1,54 @@
-# Identity group — Python remediation workshop
+# Grupo Identity — Taller de corrección automática con Python
 
-For students `user01`–`user10` in the **identity account**. Follow only this group guide.
+Para los estudiantes `user01`–`user10` de la cuenta **identity**. Sigue únicamente la guía de tu grupo.
 
-## 1. Sign in and identify your resources
+## 1. Inicia sesión e identifica tus recursos
 
-1. Use only your own login URL, username and temporary password supplied by the instructor.
-2. Change your password when prompted. Select **US East (N. Virginia), us-east-1**.
-3. Confirm you are in your assigned account. Students use the console; no CLI profile, access key or CloudShell is needed.
-4. Replace `user01` everywhere with your username, and `01` with your two-digit participant number.
-5. Add these tags **in each resource creation request**, before submitting:
+1. Usa únicamente la URL de inicio de sesión, el usuario y la contraseña temporal que te entregue el instructor.
+2. Cambia la contraseña cuando se solicite. Selecciona **US East (N. Virginia), us-east-1**.
+3. Confirma que estás en la cuenta asignada. Trabajarás desde la consola; no necesitas perfiles de CLI, claves de acceso ni CloudShell.
+4. Sustituye `user01` por tu usuario y `01` por tu número de participante de dos dígitos en toda la guía.
+5. Incluye estas etiquetas **en la solicitud de creación de cada recurso**, antes de confirmar:
 
 ```text
 Workshop = true
 Owner = user01
 ```
 
-Names and tags are case-sensitive. Use your own resources only. Do not change your login user, existing roles, policies, boundaries, CloudTrail or account settings.
+Los nombres y las etiquetas distinguen mayúsculas de minúsculas. Usa solamente tus recursos. No modifiques tu usuario de inicio de sesión, los roles existentes, las políticas, los límites de permisos, CloudTrail ni la configuración de la cuenta.
 
-## 2. Create your Lambda function
+## 2. Crea tu función Lambda
 
-1. Open **Lambda → Functions → Create function → Author from scratch**.
-2. Name it exactly `user01-Remediator`. Choose a currently supported Python runtime.
-3. Expand **Change default execution role**; choose **Use an existing role → user01-LambdaRole**. Do not create a new role.
-4. Add `Workshop=true` and `Owner=user01` in the creation options. Create the function. If the console cannot send required tags at creation, ask the instructor to assist.
-5. Under **Configuration → General configuration**, use **128 MB** and a **10-second timeout** to start. Keep the function outside a VPC.
-6. Paste the group code below into `lambda_function.py`. Replace every indicated value. Keep handler `lambda_function.lambda_handler`. Choose **Deploy** after each edit.
-7. Leave concurrency settings unchanged. Network/storage quota increases are pending; the instructor will configure reservations later if approved.
+1. Abre **Lambda → Functions → Create function → Author from scratch**.
+2. Usa exactamente el nombre `user01-Remediator`. Selecciona una versión de Python compatible actualmente.
+3. Expande **Change default execution role** y selecciona **Use an existing role → user01-LambdaRole**. No crees un rol nuevo.
+4. Agrega `Workshop=true` y `Owner=user01` en las opciones de creación. Crea la función. Si la consola no permite enviar las etiquetas requeridas al crearla, pide ayuda al instructor.
+5. En **Configuration → General configuration**, comienza con **128 MB** y un tiempo máximo de ejecución de **10 segundos**. Deja la función fuera de una VPC.
+6. Pega el código de tu grupo en `lambda_function.py`. Sustituye los valores indicados. Conserva el controlador `lambda_function.lambda_handler`. Pulsa **Deploy** después de cada cambio.
+7. No cambies la configuración de concurrencia. Las solicitudes de aumento de cuota de las cuentas Network y Storage están pendientes; el instructor configurará las reservas si se aprueban.
 
-The execution role allows repairs. The separate `user01-EventRole` allows EventBridge to invoke the function. Lambda obtains temporary credentials automatically; never paste AWS credentials into code.
+El rol de ejecución permite aplicar las correcciones. El rol separado `user01-EventRole` permite que EventBridge invoque la función. Lambda obtiene credenciales temporales automáticamente; nunca pegues credenciales de AWS en el código.
 
-The supplied code is an educational starting point aligned with the workshop permissions. It has not been tested in your AWS accounts. Pilot one case first. It deliberately repairs a narrow lab baseline rather than assessing every possible production misconfiguration.
+El código es un ejemplo educativo alineado con los permisos del taller. No se ha probado en tus cuentas de AWS. Prueba primero un caso. Corrige una configuración concreta del laboratorio; no evalúa todas las posibles configuraciones inseguras de producción.
 
-## 3. Create your inert IAM test user
+## 3. Crea tu usuario de prueba de IAM sin permisos efectivos
 
-Your console login is `user01`; your exercise target is **a different user**, `Workshop-Target-01`. Never apply exercise policies to your console login.
+Tu usuario de inicio de sesión es `user01`; el objetivo del ejercicio es **otro usuario**, `Workshop-Target-01`. Nunca apliques las políticas del ejercicio a tu usuario de inicio de sesión.
 
-1. Open **IAM → Users → Create user**. Enter `Workshop-Target-01`, replacing `01` with your participant number.
-2. Leave **Provide user access to the AWS Management Console** unchecked.
-3. Choose direct policy attachment but select no permissions policies initially.
-4. Select the existing permissions boundary **Workshop-Target-DenyAll**.
-5. Include `Workshop=true` and `Owner=user01` before submitting creation. Use root path `/`.
-6. Review and create. Confirm the deny-all boundary remains attached.
+1. Abre **IAM → Users → Create user**. Ingresa `Workshop-Target-01` y sustituye `01` por tu número de participante.
+2. Deja sin marcar **Provide user access to the AWS Management Console**.
+3. Elige adjuntar políticas directamente, pero no selecciones políticas de permisos inicialmente.
+4. Selecciona el límite de permisos existente **Workshop-Target-DenyAll**.
+5. Incluye `Workshop=true` y `Owner=user01` antes de crear el usuario. Usa la ruta raíz `/`.
+6. Revisa y crea el usuario. Confirma que el límite que deniega todas las acciones sigue adjunto.
 
-If tags or the boundary can only be added after creation in your console flow, ask the instructor for help. They must be included in the CreateUser request. Do not create a new role, group or boundary.
+Si la consola solo permite agregar las etiquetas o el límite después de crear el usuario, pide ayuda al instructor. Deben incluirse en la solicitud CreateUser. No crees un rol, un grupo ni un límite nuevo.
 
-The deny-all boundary prevents the target's policies and access keys from authorizing AWS actions. Your participant login still has its own restricted workshop permissions.
+El límite que deniega todas las acciones impide que las políticas y claves del usuario de prueba autoricen acciones de AWS. Tu usuario de participante conserva sus propios permisos restringidos del taller.
 
-## 4. Deploy the group remediation code
+## 4. Implementa el código de corrección de tu grupo
 
-Set `OWNER`, `NUMBER` and `ACCOUNT_ID`. Keep the inline exercise name **WorkshopWildcardExercise**. The code verifies tags and the exact deny-all boundary, then modifies only your target and the specific exercise policy/key. It leaves other inline policies untouched. It recognizes the literal wildcard exercise, not every possible excessive-permission policy.
+Configura `OWNER`, `NUMBER` y `ACCOUNT_ID`. Conserva el nombre de política en línea **WorkshopWildcardExercise**. El código verifica las etiquetas y el límite exacto, y modifica únicamente tu usuario de prueba y la política o clave del ejercicio. Conserva las demás políticas en línea. Reconoce el ejemplo con comodines literales; no evalúa todas las políticas posibles con permisos excesivos.
 
 ```python
 import json
@@ -123,18 +123,18 @@ def lambda_handler(event, context):
     return result
 ```
 
-## 5. Connect EventBridge to your function
+## 5. Conecta EventBridge con tu función
 
-1. Open **Amazon EventBridge → Rules → Create rule**. Use the **default event bus** and an **event-pattern rule**, not a schedule.
-2. Name it with your username prefix as shown below. Use the Advanced Builder/custom JSON pattern editor if needed.
-3. Paste the pattern below; replace `ACCOUNT_ID` and `user01`. For Storage, also replace `S3_BPA_EVENT` with the instructor's observed event name.
-4. Choose target **AWS service → Lambda function → user01-Remediator**.
-5. For target permissions, choose **Use existing role → user01-EventRole**. Pass the **entire matched event**, with no input transformation.
-6. If the wizard proposes creating a role or adding a Lambda resource policy, choose the existing-role option. If that option is unavailable, ask the instructor; do not request broader permissions.
-7. Add the mandatory Workshop/Owner tags if the rule creation form supports them. Review and enable the rule.
+1. Abre **Amazon EventBridge → Rules → Create rule**. Usa el bus **default** y una regla basada en un patrón de eventos, no una programación.
+2. Usa el prefijo de tu usuario en el nombre indicado abajo. Si es necesario, utiliza Advanced Builder o el editor de patrones JSON personalizados.
+3. Pega el patrón y sustituye `ACCOUNT_ID` y `user01`. En Storage, sustituye también `S3_BPA_EVENT` por el nombre del evento observado por el instructor.
+4. Selecciona el destino **AWS service → Lambda function → user01-Remediator**.
+5. En los permisos del destino, selecciona **Use existing role → user01-EventRole**. Envía el **evento completo**, sin transformar la entrada.
+6. Si el asistente propone crear un rol o agregar una política de recursos a Lambda, selecciona el rol existente. Si esa opción no aparece, consulta al instructor; no solicites permisos más amplios.
+7. Agrega las etiquetas Workshop/Owner requeridas si el formulario de creación de la regla lo permite. Revisa y habilita la regla.
 
-The caller filter excludes repairs made by the Lambda role, helping prevent loops. `errorCode` filtering ignores unsuccessful API calls. The handler repeats scope checks and reads current state because events can be duplicated or delayed.
-Create rule **`user01-Identity`**. One rule can route this group’s API events to one function.
+El filtro del usuario que realiza la llamada excluye las correcciones hechas por el rol de Lambda y ayuda a evitar ciclos. El filtro `errorCode` ignora llamadas fallidas. El controlador vuelve a comprobar el alcance y el estado actual porque los eventos pueden duplicarse o llegar con retraso.
+Crea la regla **`user01-Identity`**. Una sola regla puede enviar los eventos de API del grupo a la misma función.
 
 ```json
 {
@@ -173,59 +173,59 @@ Create rule **`user01-Identity`**. One rule can route this group’s API events 
 }
 ```
 
-## 6. Run the exercises, one at a time
+## 6. Realiza los ejercicios, uno a la vez
 
 
-### Exercise 5 — AdministratorAccess attachment
+### Ejercicio 5 — Adjuntar AdministratorAccess
 
-1. Open your **test target** → Permissions → Add permissions → Attach policies directly.
-2. Select **AdministratorAccess** and attach it. Keep the deny-all boundary.
-3. Refresh: AdministratorAccess should be detached automatically. The boundary remains.
+1. Abre tu **usuario de prueba** → Permissions → Add permissions → Attach policies directly.
+2. Selecciona **AdministratorAccess** y adjúntala. Conserva el límite que deniega todas las acciones.
+3. Actualiza: AdministratorAccess debe retirarse automáticamente. El límite permanece.
 
-### Exercise 6 — Wildcard inline policy
+### Ejercicio 6 — Política en línea con comodines
 
-1. On your test target, create an inline policy using the JSON editor:
+1. En tu usuario de prueba, crea una política en línea con el editor JSON:
 
 ```json
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}
 ```
 
-2. Name it exactly **WorkshopWildcardExercise** and save.
-3. Refresh: that inline policy should disappear. The code removes this entire named exercise policy, so do not add unrelated statements to it.
+2. Usa exactamente el nombre **WorkshopWildcardExercise** y guarda.
+3. Actualiza: esa política debe desaparecer. El código elimina toda la política de ese nombre; no agregues instrucciones ajenas al ejercicio.
 
-### Exercise 7 — Access-key creation
+### Ejercicio 7 — Crear una clave de acceso
 
-1. Open your test target → **Security credentials → Create access key**. Select the appropriate test use-case option and acknowledge the prompt if required.
-2. Create the key. Do not download, copy, use or distribute its secret.
-3. Return to the target's key list. Confirm the new key becomes **Inactive**.
-4. Delete the inactive test key after recording evidence. IAM permits at most two keys per user; do not accumulate them.
+1. Abre tu usuario de prueba → **Security credentials → Create access key**. Selecciona la opción adecuada para el caso de prueba y confirma el aviso si se solicita.
+2. Crea la clave. No descargues, copies, uses ni distribuyas su secreto.
+3. Regresa a la lista de claves del usuario de prueba. Confirma que la nueva clave queda **Inactive**.
+4. Elimina la clave inactiva después de registrar la evidencia. IAM permite como máximo dos claves por usuario; no las acumules.
 
-The key belongs to the inert target, not your participant login. The code uses the new key ID from the event and deactivates only that key.
+La clave pertenece al usuario de prueba sin permisos efectivos, no a tu usuario de inicio de sesión. El código obtiene el ID de la nueva clave del evento y desactiva únicamente esa clave.
 
-## 7. Verify and record evidence
+## 7. Verifica y registra la evidencia
 
-For **each** exercise:
+Para **cada** ejercicio:
 
-1. Refresh the resource configuration until the expected compliant state appears. Event delivery and attribute propagation are asynchronous; do not assume immediate repair.
-2. Open your function's **Monitor → View CloudWatch logs**, or your pre-created `/aws/lambda/user01-Remediator` log group in CloudWatch. Find the event ID, resource and outcome.
-3. Save a screenshot of the compliant state and a sanitized log entry. Do not include passwords, access-key secrets or entire IAM events.
-4. With the instructor's sanitized EventBridge event, use **Lambda → Test → Create new event**. Keep its full EventBridge envelope and your own caller/resource values. Invoke it again after repair; expect `already_compliant` and no further writes.
-5. Record the event name, resource identifier, repair result and duplicate/no-op result.
+1. Actualiza la configuración del recurso hasta observar el estado esperado. La entrega del evento y la propagación de atributos son asíncronas; la corrección puede tardar.
+2. Abre **Monitor → View CloudWatch logs** en tu función, o el grupo `/aws/lambda/user01-Remediator` precreado en CloudWatch. Busca el identificador del evento, el recurso y el resultado.
+3. Guarda una captura del estado corregido y una entrada de registro sin datos sensibles. No incluyas contraseñas, secretos de claves de acceso ni eventos completos de IAM.
+4. Con el evento de EventBridge sin datos sensibles proporcionado por el instructor, abre **Lambda → Test → Create new event**. Conserva la estructura completa del evento y los valores de tu usuario y recurso. Invócalo otra vez después de la corrección: debe devolver `already_compliant` sin nuevas modificaciones.
+5. Registra el nombre del evento, el identificador del recurso, el resultado de la corrección y el resultado de repetir el evento sin cambios.
 
-A logged `repair_requested` is not proof of completion: confirm the resource state separately. If no log arrives, check the enabled rule, exact caller ARN, account/Region, target and existing event role. Ask the instructor to verify active CloudTrail management-event logging. Students do not need permission to configure a trail or inspect every account event.
+El resultado `repair_requested` en el registro no confirma que la corrección terminó: verifica también el estado del recurso. Si no aparecen registros, revisa la regla habilitada, el ARN exacto del usuario que hizo la llamada, la cuenta, la región, el destino y el rol existente de EventBridge. Pide al instructor que confirme que CloudTrail está registrando eventos de administración. Los estudiantes no necesitan configurar un trail ni inspeccionar todos los eventos de la cuenta.
 
-If logs show `AccessDenied`, check assigned names, creation tags and role selection. Do not remove a boundary or loosen an SCP. If the function reports missing event fields, show the instructor a sanitized event so its actual shape can be checked.
+Si aparece `AccessDenied`, revisa los nombres asignados, las etiquetas de creación y el rol seleccionado. No retires un límite de permisos ni flexibilices una SCP. Si la función informa que faltan campos, comparte con el instructor un evento sin datos sensibles para revisar su estructura real.
 
-With shared concurrency, short delays may occur when many students test at once. Trigger one change, verify it, then move to the next. Ask the instructor to inspect **Errors, Throttles and Duration** if delays persist.
-## 8. Finish and clean up
+Con concurrencia compartida puede haber demoras si muchos estudiantes prueban al mismo tiempo. Provoca un cambio, verifica el resultado y después continúa. Si las demoras persisten, pide al instructor que revise **Errors, Throttles y Duration**.
+## 8. Finaliza y limpia los recursos
 
-1. Disable your EventBridge rules first. Keep them disabled during cleanup.
-2. Save your evidence and code. Restore any remaining exercise misconfiguration manually if remediation failed.
-3. Remove only your allowed exercise resources, following the group notes below.
-4. Notify the instructor. The instructor removes functions, log groups, protected IAM targets, participant identities, roles and policies; students cannot delete/recreate their Lambda functions.
+1. Deshabilita primero tus reglas de EventBridge y mantenlas deshabilitadas durante la limpieza.
+2. Guarda la evidencia y el código. Si una corrección falló, restaura manualmente la configuración segura.
+3. Elimina únicamente los recursos de ejercicios que tus permisos permitan, según las indicaciones del grupo.
+4. Notifica al instructor. Él elimina las funciones, los grupos de registros, los usuarios de prueba protegidos, las identidades de participantes, los roles y las políticas. Los estudiantes no pueden eliminar y volver a crear sus funciones Lambda.
 
-Delete your test keys and remove any remaining exercise policies after disabling the rule. Do not remove the boundary. Ask the instructor to delete the target user; student target deletion is denied.
-## References
+Después de deshabilitar la regla, elimina tus claves de prueba y las políticas del ejercicio que permanezcan. No retires el límite. Pide al instructor que elimine el usuario de prueba; los estudiantes no tienen permiso para eliminarlo.
+## Referencias
 
 - https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html
 - https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateUser.html

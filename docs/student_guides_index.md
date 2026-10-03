@@ -1,33 +1,33 @@
-# AWS Python security workshop — student guide index
+# Taller de seguridad de AWS con Python — Índice de guías
 
-## Which guide should I use?
+## ¿Qué guía debo usar?
 
-| Assigned account | Student guide | Exercises |
+| Cuenta asignada | Guía | Ejercicios |
 |---|---|---|
-| Network | network_student_guide.md | SSH, RDP, all-protocol ingress, subnet public IPv4 default |
-| Identity | identity_student_guide.md | AdministratorAccess, wildcard inline policy, access keys |
-| Storage | storage_student_guide.md | Bucket public-access blocking, public SQS policy, SQS encryption |
+| Network | [Guía Network](network_student_guide.md) | SSH, RDP, entrada de todos los protocolos, IPv4 pública automática en subred |
+| Identity | [Guía Identity](identity_student_guide.md) | AdministratorAccess, política en línea con comodines, claves de acceso |
+| Storage | [Guía Storage](storage_student_guide.md) | Block Public Access del bucket, política pública de SQS, cifrado de SQS |
 
-Each guide is self-contained and applies to user01–user10. Each student creates **one Lambda in their assigned account**, handling that group's cases. Students work through the AWS console; credentials and CLI profiles are not required for their code.
+Cada guía es independiente y aplica a user01–user10. Cada estudiante crea **una función Lambda en su cuenta asignada** para los casos de su grupo. Se trabaja desde la consola; no se necesitan claves de acceso ni perfiles de CLI para ejecutar el código.
 
-Examples use user01 / participant 01. Replace them consistently with your assigned username and number. Same usernames in different accounts are separate logins.
+Los ejemplos usan user01 / participante 01. Sustitúyelos de forma consistente por tu usuario y número asignados. Los mismos nombres de usuario en cuentas diferentes corresponden a inicios de sesión independientes.
 
-## Instructor handoff before class
+## Preparación del instructor antes de la clase
 
-1. Share the student's individual ready credential row privately, plus the appropriate group guide. Do not distribute the full credentials CSV.
-2. Supply the actual account ID and confirm us-east-1. For Network, supply the workshop VPC ID and each configured subnet CIDR.
-3. Confirm both SCPs, roles, boundaries and CloudTrail management-event logging are in place.
-4. Pilot user01 in each account using these guides. Verify console creation tags/boundary and EventBridge existing-role selection work under the actual permissions.
-5. For Storage, provide the exact bucket BPA CloudTrail eventName, plus sanitized sample events for all cases. Confirm the request fields used by the handlers match those events.
-6. Network/storage currently have a total concurrency quota of 10; quota requests are pending. Do not run the all-account concurrency cap until sufficient capacity exists. Proceed with short functions and one change per student at a time. Instructor monitors errors/throttles/duration.
-7. These educational handlers have not been integration-tested in AWS. Validate the pilot end state and duplicate/no-op behavior before student delivery. They do not implement production approval, durable deduplication, dead-letter handling or atomic protection against concurrent external changes.
+1. Comparte de forma privada únicamente la fila de credenciales con estado ready del estudiante y su guía. No distribuyas el CSV completo.
+2. Proporciona el ID real de la cuenta y confirma us-east-1. Para Network, proporciona la VPC y el CIDR configurado de cada estudiante.
+3. Confirma que ambas SCP, los roles, los límites de permisos y el registro de eventos de administración de CloudTrail están configurados.
+4. Haz una prueba piloto con user01 en cada cuenta. Verifica que la consola permita enviar etiquetas y el límite al crear recursos, y seleccionar el rol existente en EventBridge con los permisos actuales.
+5. Para Storage, proporciona el eventName exacto de CloudTrail para Block Public Access del bucket y eventos de ejemplo sin datos sensibles para todos los casos. Confirma que los campos de solicitud coincidan con los usados por los controladores.
+6. Network y Storage tienen actualmente una cuota total de concurrencia de 10; los aumentos están pendientes. No ejecutes el límite de concurrencia para todas las cuentas hasta disponer de capacidad suficiente. Usa funciones cortas y un cambio a la vez por estudiante. El instructor supervisa errores, limitaciones y duración.
+7. Estos controladores educativos no se han probado mediante integración en AWS. Verifica el estado final y que repetir un evento no produzca nuevas modificaciones antes de entregar las guías. No incluyen aprobación de producción, deduplicación persistente, manejo de eventos fallidos ni protección atómica ante cambios externos concurrentes.
 
-## Expected evidence
+## Evidencia esperada
 
-For each assigned case: resource identifier, compliant end-state screenshot, sanitized repair log, and a duplicate replay returning already_compliant. Keep secrets out of screenshots and logs.
+Para cada caso asignado: identificador del recurso, captura del estado corregido, registro de corrección sin datos sensibles y repetición del evento que devuelva already_compliant. No incluyas secretos en capturas ni registros.
 
-## Cleanup ownership
+## Responsabilidades de limpieza
 
-Students disable their rules and delete only permitted owned exercise resources. Instructor removes protected IAM targets, Lambda functions, logs, participant identities, policies, roles and final network foundations. Keep both SCPs attached while workshop principals remain.
+Los estudiantes deshabilitan sus reglas y eliminan únicamente los recursos propios permitidos. El instructor elimina los usuarios de prueba protegidos, funciones Lambda, registros, identidades de participantes, políticas, roles y la infraestructura de red final. Mantén ambas SCP adjuntas mientras existan identidades del taller.
 
-Baseline: current workshop_setup.md, revision 3. Prepared after participant provisioning; these guides do not rerun provisioning or alter existing permissions.
+Base: workshop_setup.md, revisión 3. Guías preparadas después del aprovisionamiento; no vuelven a ejecutar ese proceso ni modifican los permisos existentes. Los archivos de aprovisionamiento se administran por separado y no se incluyen en este repositorio.
